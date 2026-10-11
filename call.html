@@ -1,0 +1,761 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>手机号拨号页</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --bg: #f3f4f6; --card: #ffffff; --line: #d1d5db;
+  --text: #111827; --sub: #6b7280;
+  --blue: #007aff; --blue-dark: #0062cc; --gray: #e5e7eb;
+  --ok: #16a34a; --err: #dc2626;
+}
+html { -webkit-text-size-adjust: 100%; }
+body {
+  font-family: system-ui, -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
+  background: var(--bg); color: var(--text);
+  padding: 24px 20px calc(28px + env(safe-area-inset-bottom));
+  min-height: 100vh; line-height: 1.5;
+}
+body.no-scroll { overflow: hidden; }
+.container { max-width: 420px; margin: 0 auto; }
+.page-head { margin-bottom: 20px; }
+.page-head h1 { font-size: 22px; font-weight: 700; letter-spacing: .5px; }
+.page-head p { font-size: 13px; color: var(--sub); margin-top: 4px; }
+.card {
+  background: var(--card); border-radius: 16px; padding: 20px;
+  box-shadow: 0 1px 3px rgba(0,0,0,.07), 0 8px 24px rgba(0,0,0,.04);
+}
+.field-label { font-size: 13px; color: var(--sub); margin-bottom: 8px; display: block; }
+#phoneInput {
+  width: 100%; padding: 16px 14px; font-size: 24px;
+  font-variant-numeric: tabular-nums; letter-spacing: 1px;
+  border: 1.5px solid var(--line); border-radius: 12px;
+  outline: none; background: #fff; color: var(--text);
+}
+#phoneInput:focus { border-color: var(--blue); box-shadow: 0 0 0 3px rgba(0,122,255,.14); }
+.count { font-size: 12px; color: var(--sub); margin-top: 8px; min-height: 26px; display: flex; align-items: center; justify-content: flex-end; gap: 8px; }
+.badge { display: none; align-items: center; font-size: 12px; font-weight: 600; line-height: 1; padding: 5px 9px; border-radius: 999px; max-width: 72%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.badge.show { display: inline-flex; }
+.badge.ok { color: var(--blue-dark); background: rgba(0,122,255,.12); }
+.badge.err { color: var(--err); background: rgba(220,38,38,.1); }
+
+.btn-wrap { display: flex; gap: 10px; margin-top: 18px; }
+.btn-row2 { display: flex; gap: 10px; margin-top: 10px; }
+button {
+  flex: 1; min-height: 52px; font-size: 19px; font-weight: 600;
+  border-radius: 12px; border: none; cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: transform .08s ease, background-color .15s ease;
+}
+button:active { transform: scale(.98); }
+#callBtn { background: var(--blue); color: #fff; }
+#callBtn:disabled { background: #b9d4f5; color: #eaf3fd; cursor: not-allowed; transform: none; }
+#clearBtn { background: var(--gray); color: #111; }
+
+.btn-row2 button { min-height: 50px; }
+#pasteBtn {
+  flex: 2.4;
+  font-size: 17px; font-weight: 600;
+  background: #fff; color: var(--blue-dark);
+  border: 1.5px dashed rgba(0,122,255,.5);
+}
+#exportBtn {
+  flex: 1;
+  font-size: 13px; font-weight: 500;
+  background: #fff; color: var(--sub);
+  border: 1.5px solid var(--line);
+}
+
+.recent { margin-top: 22px; }
+.recent-head { font-size: 13px; color: var(--sub); margin-bottom: 10px; display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.recent-count { font-size: 12px; color: var(--sub); font-variant-numeric: tabular-nums; }
+
+#recentList {
+  display: flex; flex-direction: column; gap: 6px;
+  max-height: 280px; overflow-y: auto; -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+  padding-right: 2px;
+}
+#recentList::-webkit-scrollbar { width: 5px; }
+#recentList::-webkit-scrollbar-thumb { background: #d7dae0; border-radius: 999px; }
+
+.empty-recent { font-size: 13px; color: var(--sub); padding: 12px; border: 1px dashed var(--line); border-radius: 10px; text-align: center; }
+.r-item {
+  display: flex; align-items: center; gap: 6px;
+  padding: 7px 9px; border: 1px solid var(--line);
+  border-radius: 10px; background: #fafafa;
+}
+.r-num {
+  flex: 1 1 auto; min-width: 0;
+  font-size: 14px; font-variant-numeric: tabular-nums;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.r-num .r-label { color: var(--sub); font-size: 13px; }
+.r-time {
+  flex: 0 0 auto; font-size: 11px; color: var(--sub);
+  font-variant-numeric: tabular-nums; white-space: nowrap;
+}
+.r-item button {
+  flex: 0 0 auto; min-height: 38px; min-width: 44px;
+  font-size: 13px; font-weight: 500; padding: 0 9px; border-radius: 9px;
+}
+.r-call { background: rgba(0,122,255,.1); color: var(--blue-dark); }
+.r-del { background: transparent; color: var(--sub); min-width: 40px !important; }
+
+.picker-mask {
+  position: fixed; inset: 0; z-index: 60;
+  background: rgba(17,24,39,.45);
+  display: none; align-items: flex-end; justify-content: center;
+}
+.picker-mask.show { display: flex; }
+.picker-sheet {
+  width: 100%; max-width: 420px;
+  background: #fff; border-radius: 18px 18px 0 0;
+  padding: 16px 16px calc(16px + env(safe-area-inset-bottom));
+  max-height: 74vh; display: flex; flex-direction: column;
+  animation: sheetUp .18s ease-out;
+}
+@keyframes sheetUp {
+  from { transform: translateY(24px); opacity: .5; }
+  to { transform: translateY(0); opacity: 1; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .picker-sheet { animation: none; }
+}
+.picker-head {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 10px; margin-bottom: 12px;
+}
+.picker-title { font-size: 16px; font-weight: 700; }
+.picker-sub { font-size: 12px; color: var(--sub); margin-top: 2px; }
+.picker-close {
+  flex: 0 0 auto; width: auto; min-height: 38px; min-width: 60px;
+  font-size: 14px; font-weight: 500; padding: 0 14px; border-radius: 9px;
+  background: var(--gray); color: #111;
+}
+.picker-list {
+  overflow-y: auto; -webkit-overflow-scrolling: touch;
+  display: flex; flex-direction: column; gap: 6px;
+  padding-right: 2px;
+}
+.picker-list::-webkit-scrollbar { width: 5px; }
+.picker-list::-webkit-scrollbar-thumb { background: #d7dae0; border-radius: 999px; }
+.picker-item {
+  width: 100%; flex: 0 0 auto;
+  display: flex; align-items: baseline; gap: 8px;
+  padding: 12px; border: 1px solid var(--line);
+  border-radius: 10px; background: #fafafa;
+  font-size: 15px; font-weight: 400; text-align: left;
+  min-height: 0; color: var(--text);
+}
+.picker-item:active { background: #eef1f5; }
+.p-num { font-variant-numeric: tabular-nums; font-weight: 600; flex: 0 0 auto; }
+.p-label { color: var(--sub); font-size: 13px; flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+#toast {
+  position: fixed; left: 50%; bottom: calc(28px + env(safe-area-inset-bottom));
+  transform: translateX(-50%) translateY(16px); max-width: 90vw;
+  background: rgba(17,24,39,.92); color: #fff; font-size: 14px;
+  padding: 11px 16px; border-radius: 999px;
+  opacity: 0; pointer-events: none;
+  transition: opacity .2s ease, transform .2s ease;
+  z-index: 80;
+}
+#toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+.tip { margin-top: 18px; font-size: 13px; color: var(--sub); }
+@media (prefers-reduced-motion: reduce) {
+  button, #toast { transition: none; }
+  button:active { transform: none; }
+}
+</style>
+</head>
+<body>
+<div class="container">
+
+  <div class="page-head">
+    <h1>手机号拨号页</h1>
+    <p>手机 / 座机 / 分机，一键拨号</p>
+  </div>
+
+  <div class="card">
+    <label class="field-label" for="phoneInput">电话号码（手机 / 区号+座机 / 本地座机）</label>
+    <input id="phoneInput" type="tel" inputmode="numeric" autocomplete="off"
+           placeholder="如 13812345678 / 01088886666 转 801" aria-describedby="count">
+    <div class="count" id="count"><span class="badge" id="typeBadge"></span><span id="countText">已输入 0 位数字</span></div>
+
+    <div class="btn-wrap">
+      <button id="callBtn" data-primary-action disabled>呼叫</button>
+      <button id="clearBtn" type="button">清空</button>
+    </div>
+
+    <div class="btn-row2">
+      <button id="pasteBtn" type="button">粘贴号码</button>
+      <button id="exportBtn" type="button">导出</button>
+    </div>
+
+    <div class="recent">
+      <div class="recent-head">
+        <span>最近号码</span>
+        <span class="recent-count" id="recentCount"></span>
+      </div>
+      <div id="recentList"></div>
+    </div>
+  </div>
+
+  <p class="tip" id="tipText">手机、座机（区号+号码）、本地座机都能呼叫；分机可用「转」或逗号。<strong>一次粘贴多行号码会弹出列表，点哪条就填哪条</strong>，每行后面的公司名 / 人名会作为备注保留。导出为「号码 / 时间 / 备注」三列，可直接粘贴进 Excel。</p>
+</div>
+
+<div class="picker-mask" id="pickerMask">
+  <div class="picker-sheet">
+    <div class="picker-head">
+      <div>
+        <div class="picker-title">选择要拨打的号码</div>
+        <div class="picker-sub" id="pickerSub"></div>
+      </div>
+      <button class="picker-close" id="pickerClose" type="button">关闭</button>
+    </div>
+    <div class="picker-list" id="pickerList"></div>
+  </div>
+</div>
+
+<div id="toast" role="status" aria-live="polite"></div>
+
+<a id="dialLink" style="position:fixed;left:-9999px;top:0;width:1px;height:1px;opacity:0;pointer-events:none;" rel="noopener"></a>
+
+<script>
+(function () {
+  var KEY = 'phone_dial_recent_v3';
+  var MAX = 200;
+
+  var inputEl = document.getElementById('phoneInput');
+  var callBtn = document.getElementById('callBtn');
+  var clearBtn = document.getElementById('clearBtn');
+  var pasteBtn = document.getElementById('pasteBtn');
+  var exportBtn = document.getElementById('exportBtn');
+  var countTxt = document.getElementById('countText');
+  var badgeEl = document.getElementById('typeBadge');
+  var dialLink = document.getElementById('dialLink');
+  var listEl = document.getElementById('recentList');
+  var countRecentEl = document.getElementById('recentCount');
+  var toastEl = document.getElementById('toast');
+  var pickerMask = document.getElementById('pickerMask');
+  var pickerList = document.getElementById('pickerList');
+  var pickerClose = document.getElementById('pickerClose');
+  var pickerSub = document.getElementById('pickerSub');
+
+  var pendingLabel = '';
+
+  /* ===================== 号码解析 ===================== */
+
+  var NUM_CHAR = /[\d\s\-()+.,，转]/;
+
+  function parseInput(raw) {
+    var s = String(raw == null ? '' : raw).trim();
+    if (!s) return { num: '', ext: '', label: '' };
+
+    var numEnd = 0, i;
+    for (i = 0; i < s.length; i++) {
+      if (NUM_CHAR.test(s[i])) numEnd = i + 1;
+      else break;
+    }
+
+    var numPart = s.slice(0, numEnd).trim();
+    var label = s.slice(numEnd).trim();
+
+    if (!/\d/.test(numPart)) {
+      var start = s.search(/\d/);
+      if (start < 0) return { num: '', ext: '', label: s };
+      numEnd = start;
+      for (i = start; i < s.length; i++) {
+        if (NUM_CHAR.test(s[i])) numEnd = i + 1;
+        else break;
+      }
+      numPart = s.slice(start, numEnd).trim();
+      label = (s.slice(0, start) + ' ' + s.slice(numEnd)).trim();
+    }
+
+    var mainDigits, extDigits = '';
+    var cut = numPart.search(/[,，转]/);
+    if (cut >= 0) {
+      mainDigits = numPart.slice(0, cut).replace(/\D/g, '');
+      extDigits = numPart.slice(cut).replace(/\D/g, '');
+      if (!mainDigits || !extDigits) {
+        mainDigits = numPart.replace(/\D/g, '');
+        extDigits = '';
+      }
+    } else {
+      mainDigits = numPart.replace(/\D/g, '');
+    }
+
+    return { num: mainDigits, ext: extDigits, label: label };
+  }
+
+  var AREA3 = { '010':1,'020':1,'021':1,'022':1,'023':1,'024':1,'025':1,'026':1,'027':1,'028':1,'029':1 };
+  var TYPE_LABEL = { mobile:'手机号', landline:'座机', local:'本地座机', service:'服务号' };
+
+  function classifyDigits(n) {
+    if (!n) return { type: 'invalid', digits: '' };
+    if (/^1[3-9]\d{9}$/.test(n)) return { type: 'mobile', digits: n };
+    if (/^0\d{9,11}$/.test(n)) return { type: 'landline', digits: n };
+    if (/^(400|800)\d{7}$/.test(n) && n.length === 10) return { type: 'service', digits: n };
+    if (/^\d{7,8}$/.test(n) && !/^1[3-9]/.test(n)) return { type: 'local', digits: n };
+    return { type: 'invalid', digits: n };
+  }
+
+  function fmtNum(str) {
+    var p = parseInput(str);
+    if (!p.num) return '';
+    var info = classifyDigits(p.num);
+    var d = p.num, head;
+    if (info.type === 'mobile') head = d.replace(/(\d{3})(\d{4})(\d{4})/, '$1 $2 $3');
+    else if (info.type === 'service') head = d.replace(/(\d{3})(\d{3})(\d{4})/, '$1 $2 $3');
+    else if (info.type === 'landline') {
+      if (AREA3[d.slice(0,3)]) head = d.slice(0,3) + ' ' + d.slice(3).replace(/(\d{4})(?=\d)/g, '$1 ');
+      else head = d.slice(0,4) + ' ' + d.slice(4).replace(/(\d{4})(?=\d)/g, '$1 ');
+    } else if (info.type === 'local') {
+      head = d.replace(/(\d{4})(?=\d)/g, '$1 ');
+    } else {
+      head = d;
+    }
+    head = head.trim();
+    return p.ext ? head + ' 转 ' + p.ext : head;
+  }
+
+  /* ===================== 时间 ===================== */
+  function pad2(n) { return (n < 10 ? '0' : '') + n; }
+
+  /** 页面列表用：只有时:分:秒 */
+  function fmtTimeOnly(ts) {
+    if (!ts) return '';
+    var d = new Date(ts);
+    return pad2(d.getHours()) + ':' + pad2(d.getMinutes()) + ':' + pad2(d.getSeconds());
+  }
+
+  /** 导出用：完整日期时间 2026-10-11 12:00:05 */
+  function fmtTimeFull(ts) {
+    if (!ts) return '';
+    var d = new Date(ts);
+    return d.getFullYear() + '-' + pad2(d.getMonth() + 1) + '-' + pad2(d.getDate()) +
+           ' ' + pad2(d.getHours()) + ':' + pad2(d.getMinutes()) + ':' + pad2(d.getSeconds());
+  }
+
+  /* ===================== 提示 ===================== */
+  var toastTimer = null;
+  function toast(msg) {
+    toastEl.textContent = msg;
+    toastEl.classList.add('show');
+    if (toastTimer) clearTimeout(toastTimer);
+    toastTimer = setTimeout(function () { toastEl.classList.remove('show'); }, 2400);
+  }
+
+  /* ===================== 记录存取 ===================== */
+  var memCache = null;
+
+  function readRecent() {
+    if (memCache && memCache.length) return memCache.slice();
+    var arr;
+    try {
+      var raw = window.localStorage.getItem(KEY);
+      arr = raw ? JSON.parse(raw) : [];
+    } catch (e) { arr = []; }
+    if (!Array.isArray(arr)) arr = [];
+
+    var out = [];
+    for (var i = 0; i < arr.length; i++) {
+      var it = arr[i];
+      if (typeof it === 'string') {
+        var p = parseInput(it);
+        out.push({ num: p.num, ext: p.ext, label: p.label, ts: 0 });
+      } else if (it && typeof it.num === 'string') {
+        out.push({
+          num: it.num,
+          ext: it.ext || '',
+          label: it.label || '',
+          ts: Number(it.ts) || 0
+        });
+      }
+    }
+    memCache = out;
+    return out.slice();
+  }
+
+  function saveRecent(list) {
+    memCache = list.slice();
+    try { window.localStorage.setItem(KEY, JSON.stringify(list)); } catch (e) {}
+  }
+
+  function pushRecent(entry) {
+    var list = readRecent().filter(function (it) {
+      return !(it.num === entry.num && it.ext === entry.ext && it.label === entry.label);
+    });
+    list.unshift(entry);
+    saveRecent(list.slice(0, MAX));
+    renderRecent();
+  }
+
+  function entryText(item) {
+    return fmtNum(item.num + (item.ext ? '转' + item.ext : ''));
+  }
+
+  /* ===================== 输入框状态 ===================== */
+  function syncState() {
+    var raw = inputEl.value;
+    var p = parseInput(raw);
+    var info = p.num ? classifyDigits(p.num) : null;
+    var ok = !!info && info.type !== 'invalid';
+
+    callBtn.disabled = !ok;
+    badgeEl.classList.remove('show', 'ok', 'err');
+
+    if (!raw.trim()) {
+      countTxt.textContent = '手机 / 区号+座机 / 本地座机，均可呼叫';
+      return;
+    }
+    if (ok) {
+      var label = TYPE_LABEL[info.type];
+      if (p.ext) label += ' 转' + p.ext;
+      if (pendingLabel) label += ' · ' + pendingLabel;
+      badgeEl.textContent = label;
+      badgeEl.title = label;
+      badgeEl.classList.add('show', 'ok');
+      countTxt.textContent = '可以呼叫';
+    } else {
+      badgeEl.textContent = '号码格式不正确';
+      badgeEl.classList.add('show', 'err');
+      countTxt.textContent = p.num ? ('已识别 ' + p.num.length + ' 位') : '未识别到号码';
+    }
+  }
+
+  /* ===================== 记录列表渲染 ===================== */
+  function renderRecent() {
+    listEl.textContent = '';
+    var list = readRecent();
+    countRecentEl.textContent = list.length ? ('共 ' + list.length + ' 条') : '';
+
+    if (!list.length) {
+      var tip = document.createElement('div');
+      tip.className = 'empty-recent';
+      tip.textContent = '拨过的号码会出现在这里';
+      listEl.appendChild(tip);
+      return;
+    }
+
+    list.forEach(function (item, idx) {
+      var row = document.createElement('div');
+      row.className = 'r-item';
+
+      var numEl = document.createElement('span');
+      numEl.className = 'r-num';
+      numEl.appendChild(document.createTextNode(entryText(item)));
+      if (item.label) {
+        var lb = document.createElement('span');
+        lb.className = 'r-label';
+        lb.textContent = '  ' + item.label;
+        numEl.appendChild(lb);
+      }
+      numEl.title = entryText(item) + (item.label ? '  ' + item.label : '');
+      row.appendChild(numEl);
+
+      // 页面列表只显示时分秒
+      var timeEl = document.createElement('span');
+      timeEl.className = 'r-time';
+      timeEl.textContent = item.ts ? fmtTimeOnly(item.ts) : '--';
+      row.appendChild(timeEl);
+
+      var call = document.createElement('button');
+      call.className = 'r-call';
+      call.type = 'button';
+      call.textContent = '拨';
+      call.setAttribute('aria-label', '拨打 ' + entryText(item));
+      call.addEventListener('click', function () {
+        pendingLabel = item.label || '';
+        var raw = item.num + (item.ext ? '转' + item.ext : '');
+        inputEl.value = fmtNum(raw);
+        syncState();
+        dial(raw);
+      });
+      row.appendChild(call);
+
+      var del = document.createElement('button');
+      del.className = 'r-del';
+      del.type = 'button';
+      del.textContent = '删';
+      del.setAttribute('aria-label', '删除 ' + entryText(item));
+      del.addEventListener('click', function () {
+        var newList = readRecent().filter(function (it, i) { return i !== idx; });
+        saveRecent(newList);
+        renderRecent();
+        toast('已删除');
+      });
+      row.appendChild(del);
+
+      listEl.appendChild(row);
+    });
+  }
+
+  /* ===================== 拨号（同步触发） ===================== */
+  function dial(raw) {
+    var p = parseInput(raw);
+    if (!p.num) { toast('号码格式不正确，请检查'); return; }
+    var info = classifyDigits(p.num);
+    if (info.type === 'invalid') { toast('号码格式不正确，请检查'); return; }
+
+    pushRecent({
+      num: info.digits,
+      ext: p.ext || '',
+      label: pendingLabel || '',
+      ts: Date.now()
+    });
+
+    var tel = 'tel:' + (p.ext ? info.digits + ',' + p.ext : info.digits);
+    dialLink.href = tel;
+    dialLink.click();
+  }
+
+  /* ===================== 多号码选择弹窗 ===================== */
+  function openPicker(entries) {
+    pickerList.textContent = '';
+    pickerSub.textContent = '共 ' + entries.length + ' 个号码，点击即填入输入框';
+
+    entries.forEach(function (e) {
+      var btn = document.createElement('button');
+      btn.className = 'picker-item';
+      btn.type = 'button';
+
+      var numEl = document.createElement('span');
+      numEl.className = 'p-num';
+      numEl.textContent = fmtNum(e.num + (e.ext ? '转' + e.ext : ''));
+      btn.appendChild(numEl);
+
+      if (e.label) {
+        var lb = document.createElement('span');
+        lb.className = 'p-label';
+        lb.textContent = e.label;
+        lb.title = e.label;
+        btn.appendChild(lb);
+      }
+
+      btn.addEventListener('click', function () { chooseEntry(e); });
+      pickerList.appendChild(btn);
+    });
+
+    pickerMask.classList.add('show');
+    document.body.classList.add('no-scroll');
+  }
+
+  function closePicker() {
+    pickerMask.classList.remove('show');
+    document.body.classList.remove('no-scroll');
+  }
+
+  function chooseEntry(e) {
+    pendingLabel = e.label || '';
+    inputEl.value = fmtNum(e.num + (e.ext ? '转' + e.ext : ''));
+    syncState();
+    closePicker();
+    var msg = '已填入：' + inputEl.value;
+    if (e.label) msg += '（' + e.label + '）';
+    if (msg.length > 48) msg = msg.slice(0, 48) + '…';
+    toast(msg);
+    try { inputEl.focus(); } catch (err) {}
+  }
+
+  pickerClose.addEventListener('click', closePicker);
+  pickerMask.addEventListener('click', function (ev) {
+    if (ev.target === pickerMask) closePicker();
+  });
+  document.addEventListener('keydown', function (ev) {
+    if (ev.key === 'Escape' && pickerMask.classList.contains('show')) closePicker();
+  });
+
+  /* ===================== 剪贴板 ===================== */
+  function legacyCopy(text) {
+    return new Promise(function (resolve, reject) {
+      var ta = document.createElement('textarea');
+      ta.value = text;
+      ta.setAttribute('readonly', '');
+      ta.style.cssText = 'position:fixed;top:0;left:0;width:1px;height:1px;opacity:0;';
+      document.body.appendChild(ta);
+      ta.focus();
+      ta.select();
+      try { ta.setSelectionRange(0, ta.value.length); } catch (e) {}
+      var ok = false;
+      try { ok = document.execCommand('copy'); } catch (e) { ok = false; }
+      document.body.removeChild(ta);
+      ok ? resolve() : reject(new Error('copy failed'));
+    });
+  }
+
+  function copyText(text) {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      return navigator.clipboard.writeText(text).catch(function () {
+        return legacyCopy(text);
+      });
+    }
+    return legacyCopy(text);
+  }
+
+  /* ===================== 导出：号码 / 完整日期时间 / 备注 ===================== */
+  function cleanCell(s) {
+    return String(s || '').replace(/[\t\n\r]+/g, ' ').trim();
+  }
+
+  function exportRecent() {
+    var list = readRecent();
+    if (!list.length) { toast('还没有记录可以导出'); return; }
+
+    var lines = ['号码\t时间\t备注'];
+    list.forEach(function (it) {
+      var num = it.num + (it.ext ? '转' + it.ext : '');
+      lines.push(
+        cleanCell(num) + '\t' +
+        cleanCell(it.ts ? fmtTimeFull(it.ts) : '') + '\t' +
+        cleanCell(it.label)
+      );
+    });
+
+    copyText(lines.join('\n')).then(function () {
+      toast('已复制 ' + list.length + ' 条，粘贴到表格即可');
+    }).catch(function () {
+      toast('复制失败，请手动选择复制');
+    });
+  }
+
+  /* ===================== 粘贴解析 ===================== */
+  function parsePasteText(text) {
+    var lines = String(text == null ? '' : text).split(/\r?\n/);
+    var out = [];
+    var seen = {};
+
+    for (var i = 0; i < lines.length; i++) {
+      var line = lines[i].trim();
+      if (!line) continue;
+
+      var p = parseInput(line);
+      if (!p.num) continue;
+
+      var info = classifyDigits(p.num);
+      if (info.type === 'invalid') continue;
+
+      var key = info.digits + '|' + p.ext + '|' + p.label;
+      if (seen[key]) continue;
+      seen[key] = 1;
+
+      out.push({ num: info.digits, ext: p.ext, label: p.label });
+    }
+    return out;
+  }
+
+  function applyPasteText(text) {
+    var entries = parsePasteText(text);
+
+    if (!entries.length) {
+      toast('剪贴板里没有可用号码');
+      return;
+    }
+
+    if (entries.length === 1) {
+      chooseEntry(entries[0]);
+      return;
+    }
+
+    openPicker(entries);
+  }
+
+  function fillFromClipboard() {
+    if (navigator.clipboard && navigator.clipboard.readText && window.isSecureContext) {
+      navigator.clipboard.readText().then(function (text) {
+        applyPasteText(text);
+      }).catch(function () { fallbackPaste(); });
+    } else {
+      fallbackPaste();
+    }
+  }
+
+  function fallbackPaste() {
+    inputEl.focus();
+    inputEl.select();
+    toast('请在输入框长按选择「粘贴」');
+  }
+
+  /* ===================== 事件绑定 ===================== */
+
+  function handlePhoneInput() {
+    var p = parseInput(inputEl.value);
+    pendingLabel = p.label || '';
+    syncState();
+  }
+
+  inputEl.addEventListener('input', handlePhoneInput);
+  inputEl.addEventListener('keyup', handlePhoneInput);
+  inputEl.addEventListener('change', handlePhoneInput);
+  inputEl.addEventListener('compositionend', handlePhoneInput);
+
+  inputEl.addEventListener('blur', function () {
+    if (!inputEl.value.trim()) return;
+    var formatted = fmtNum(inputEl.value);
+    if (formatted && formatted !== inputEl.value) inputEl.value = formatted;
+  });
+
+  inputEl.addEventListener('paste', function (ev) {
+    var cd = ev.clipboardData || window.clipboardData;
+    if (cd && typeof cd.getData === 'function') {
+      var txt = cd.getData('text');
+      if (txt) {
+        ev.preventDefault();
+        applyPasteText(txt);
+        return;
+      }
+    }
+    setTimeout(handlePhoneInput, 0);
+  });
+
+  // 清空按钮：click + touchend 双重兜底
+  var clearLock = 0;
+  function doClear() {
+    var now = Date.now();
+    if (now - clearLock < 250) return;
+    clearLock = now;
+    inputEl.value = '';
+    pendingLabel = '';
+    syncState();
+    try { inputEl.focus(); } catch (err) {}
+  }
+  clearBtn.addEventListener('click', doClear);
+  clearBtn.addEventListener('touchend', function (e) {
+    if (e.cancelable) e.preventDefault();
+    doClear();
+  });
+
+  pasteBtn.addEventListener('click', fillFromClipboard);
+  exportBtn.addEventListener('click', exportRecent);
+
+  callBtn.addEventListener('click', function () {
+    var raw = inputEl.value;
+    inputEl.value = fmtNum(raw);
+    dial(raw);
+  });
+
+  inputEl.addEventListener('keydown', function (e) {
+    if (e.key === 'Enter' && !callBtn.disabled) {
+      var raw = inputEl.value;
+      inputEl.value = fmtNum(raw);
+      dial(raw);
+    }
+  });
+
+  // 初始化
+  syncState();
+  renderRecent();
+
+  setTimeout(function () {
+    syncState();
+    renderRecent();
+  }, 120);
+})();
+</script>
+</body>
+</html>
